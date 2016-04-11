@@ -49,6 +49,9 @@ from PIL import ImageDraw
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 
+import threading
+from Queue import Queue
+
 # Check for variable file to import and error out if not found.
 configFilePath = baseDir + "speed_settings.py"
 if not os.path.exists(configFilePath):
@@ -209,7 +212,6 @@ def image_write(image_filename, text_to_print):
 #----------------------------------------------------------------------------------------------    
 def speed_camera():
     show_settings()
-    ave_speed = 0.0
     if verbose:
         if calibrate:
             print("In Calibration Mode ....")
@@ -219,26 +221,53 @@ def speed_camera():
         else:
             print("Press ctrl-c in this terminal session to Quit")
         print("")         
+
     msg_str = "Initializing Pi Camera ...."
     show_message("speed_camera", msg_str)
-    camera = PiCamera()
-    camera.hflip = CAMERA_HFLIP
-    camera.vflip = CAMERA_VFLIP          
-    camera.resolution = (CAMERA_WIDTH, CAMERA_HEIGHT)
-    camera.framerate = CAMERA_FRAMERATE
-    rawCapture = PiRGBArray(camera, size=(CAMERA_WIDTH, CAMERA_HEIGHT))
+
+    q = Queue()
+
+    workerThread = MotionDetection(q)
+    workerThread.start()
+
+    frameGrabber = FrameGrabber(q)
+    frameGrabber.start()
 
     msgStr = "Start Speed Motion Tracking"
     show_message("speed_camera", msgStr)                     
 
-    # allow the camera to warmup
-    time.sleep(1)
+    q.join()
 
-    from Queue import Queue
-    from threading import Thread
-    q = Queue()
+class FrameGrabber(threading.Thread):
+    def __init__(self, queue):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.camera = PiCamera()
+        self.camera.hflip = CAMERA_HFLIP
+        self.camera.vflip = CAMERA_VFLIP          
+        self.camera.resolution = (CAMERA_WIDTH, CAMERA_HEIGHT)
+        self.camera.framerate = CAMERA_FRAMERATE
+        self.rawCapture = PiRGBArray(self.camera, size=(CAMERA_WIDTH, CAMERA_HEIGHT))
 
-    def do_work(q):
+    def run(self):
+        # allow the camera to warmup
+        time.sleep(1)
+
+        # capture frames from the camera
+        for frame in self.camera.capture_continuous(self.rawCapture, format="bgr", use_video_port=True):
+            # grab the raw NumPy array representing the image, then initialize the timestamp
+            # and occupied/unoccupied text
+            self.queue.put(frame.array)
+            self.rawCapture.truncate(0)
+            self.queue.put(frame.array)
+
+class MotionDetection(threading.Thread):
+    def __init__(self, queue):
+        threading.Thread.__init__(self)
+        self.queue = queue
+
+    def run(self):
+        ave_speed = 0.0
         frame_count = 0
         fps_time = time.time()
         first_image = True   # Start a fresh image
@@ -247,7 +276,7 @@ def speed_camera():
         start_pos_x = 0
         end_pos_x = 0
         while True:
-            image2 = q.get(block=True)
+            image2 = self.queue.get(block=True)
 
             if time.time() - event_timer > event_timeout:   # Check if event timed out
                 # event_timer exceeded so reset for new track             
@@ -382,17 +411,6 @@ def speed_camera():
                         cv2.destroyAllWindows()
                         print("End Motion Tracking ......")
                         break
-
-    workerThread = Thread(target=do_work,args=(q,))
-    workerThread.start()
-
-    # capture frames from the camera
-    for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-        # grab the raw NumPy array representing the image, then initialize the timestamp
-        # and occupied/unoccupied text
-        q.put(frame.array)
-        rawCapture.truncate(0)
-        
 
 #-----------------------------------------------------------------------------------------------    
 if __name__ == '__main__':

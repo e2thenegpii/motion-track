@@ -20,11 +20,11 @@ y_upper = 140          # Exclude motion events above this point to top of image.
 y_lower = 200          # Exclude motion events below this point to bottom of image.
 
 # Motion Camera Settings
-CAMERA_HFLIP = False   # Flip the camera image horizontally if required
-CAMERA_VFLIP = False   # Flip the camera image vertically if required
+CAMERA_HFLIP = True    # Flip the camera image horizontally if required
+CAMERA_VFLIP = True    # Flip the camera image vertically if required
 CAMERA_WIDTH = 320     # Set the image stream width for opencv motion scanning default is 320
 CAMERA_HEIGHT = 240    # Set the image stream height for opencv motion scanning  default is 240
-CAMERA_FRAMERATE = 15  # Framerate of camera video frame capture default is 15
+CAMERA_FRAMERATE = 60  # Framerate of camera video frame capture default is 15
 WINDOW_BIGGER = 3      # resize multiplier for speed photo image and if gui_window_on=True then makes opencv window bigger 
 
 # Speed Photo Camera Image Settings
