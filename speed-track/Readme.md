@@ -3,6 +3,11 @@
 ###               A Raspberry Pi vehicle speed camera
 ##### using a Raspberry Pi computer, python, openCV and picamera module
 #####          written by Claude Pageau pageauc@gmail.com
+#####          With adaptations by Eldon Allred e2thenegpii@gmail.com
+
+###Version 1.00 Release Apr 25, 2016
+* Modified the code to use two threads one for image capturing and one for image processing
+* Ripped code PWM from the Adafruit Raspberry Pi library to control the angle of the camera to take rear view images of the passing vehicles.
 
 ###Version .99 Release 5-Feb-2016
 * Changed camera stream to use video mode per suggestion by Luc Bastiaens
